@@ -1,7 +1,7 @@
 #!/usr/bin/env python2
 # Released as open source by NCC Group Plc - http://www.nccgroup.com/
 # Developed by Nikos Laleas, nikos dot laleas at nccgroup dot com
-# https://github.com/nccgroup/xcavator
+# https://github.com/nccgroup/memaddressanalysis
 # Released under AGPL. See LICENSE for more information
 
 import subprocess
@@ -101,7 +101,7 @@ def main():
         e = [executable] + procargs
         p = subprocess.Popen(e)
         hProc = int(p._handle)
-        arch, process_is32 = ValidateProcess(hProc)
+        arch, process_is32 = validate_process(hProc)
         if x is 0:
             printt('Starting memory analysis...\n')
             printt('Current Process is %s.\n' % arch)
@@ -161,18 +161,18 @@ def main():
         f.close()
 
 
-def ValidateProcess(hProc):
+def validate_process(hProc):
     arch, type = platform.architecture()
-    ProcIs32 = c_bool()
-    success = windll.kernel32.IsWow64Process(hProc, byref(ProcIs32))
+    process_is32 = c_bool()
+    success = windll.kernel32.IsWow64Process(hProc, byref(process_is32))
     if not success:
         printt('Failed to check whether target process is under WoW64.\nQuitting...\n')
         exit(1)
-    return arch, ProcIs32
+    return arch, process_is32
 
 
-def scan_page(process_handle, page_address, ProcIs32, min, permissions):
-    info = VirtualQueryEx(process_handle, page_address, ProcIs32)
+def scan_page(process_handle, page_address, process_is32, min, permissions):
+    info = VirtualQueryEx(process_handle, page_address, process_is32)
     base_address = info.BaseAddress
     region_size = info.RegionSize
     next_region = base_address + region_size
@@ -209,8 +209,8 @@ def add_to_array(address, permission, size, modifier):
     list.extend(l)
 
 
-def VirtualQueryEx (hProcess, lpAddress, ProcIs32):
-    if ProcIs32:
+def VirtualQueryEx (hProcess, lpAddress, process_is32):
+    if process_is32:
         lpBuffer = MEMORY_BASIC_INFORMATION32()
     else:
         lpBuffer = MEMORY_BASIC_INFORMATION64()
@@ -273,7 +273,7 @@ def parse_args():
 
 
 def printt(string):
-    ts = datetime.datetime.fromtimestamp(time.time()).strftime('%H:%M:%S')
+    ts = time.strftime("%H:%M:%S", time.gmtime())
     sys.stdout.write("[*][%s] %s" % (ts, string))
 
 
