@@ -116,11 +116,9 @@ def main():
             p.kill()
             exit(1)
 
-        printt("Run[%d]... " % (x+1))
+        printt("Run[%d]\t" % (x+1))
         time.sleep(sleep)
         sys.stdout.write("Walking memory...\t")
-        sys.stdout.write('{:>12}  {:>7}'.format("Remaining: %s" % (datetime.timedelta(seconds=(runs-x-1)*sleep)),
-                                                "[%d%%]\n" % ((x+1)*100/runs)))
         si = SYSTEM_INFO()
         psi = byref(si)
         windll.kernel32.GetSystemInfo(psi)
@@ -135,7 +133,10 @@ def main():
             next_page = scan_page(hProc, page_address, process_is32, min_address, permissions)
             page_address = next_page
         p.kill()
+        sys.stdout.write('{:>12}  {:>10}'.format("Remaining: %s" % (datetime.timedelta(seconds=(runs-x-1)*sleep)),
+                                                "[%.2f%%]\n" % ((x+1)*100/float(runs))))
         x += 1
+
 
     printt("Printing findings...\n\n")
     header = 60*"-"+"\n"
@@ -247,14 +248,14 @@ def parse_args():
         exit(1)
     if args.min is not "0x0":
         try:
-            int(args.min, 0)
+            int(args.min, 16)
         except ValueError:
             printt('Error: Invalid minimum address. Format must be: 0xDEADBEEF\n')
             exit(1)
 
     if args.max is not "0x0":
         try:
-            int(args.max, 0)
+            int(args.max, 16)
         except ValueError:
             printt('Error: Invalid maximum address. Format must be: 0xDEADBEEF\n')
             exit(1)
