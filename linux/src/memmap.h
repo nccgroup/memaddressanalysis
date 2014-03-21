@@ -3,8 +3,10 @@
 #include "../src/def_sizes.h"
 
 typedef struct Error Error;
-typedef struct MapFileRef MapFileRef;
-typedef struct MapFileNode MapFileNode;
+typedef struct MapItemRef MapItemRef;
+typedef struct MallocTableRef MallocTableRef;
+typedef struct MallocTable MallocTable;
+typedef struct MapItem MapItem;
 
 /* Application error */
 struct Error {
@@ -13,15 +15,45 @@ struct Error {
    uint8_t log;
 };
 
-/* Linked list pointer etc */
-struct MapFileRef {
-   MapFileNode *base;
-   MapFileNode *current;
+/* Linked list reference for MapItem, only base for now */
+struct MapItemRef {
+   MapItem *base;
+   MapItem *end;
 };
 
-/* Single node */
-struct MapFileNode {
-   int fd;
-   MapFileNode *prev;
-   MapFileNode *next;
+/* Single item */
+struct MapItem {
+   int count; /* Number of page map occurences across processes */
+   unsigned long long baseAddress, endAddress, offset;
+   char permissions[1024], offsetStr[1024], device[1024], inode[1024], pathname[1024];
+
+   MapItem *prev;
+   MapItem *next;
 };
+
+/* Linked list reference for MallocTable, only base for now */
+struct MallocTableRef {
+   MallocTable *base;
+};
+
+struct MallocTable {
+   void *mallocAddress;
+
+   MallocTable *prev;
+   MallocTable *next;
+};
+
+/* FUNCTIONS! */
+int setupMapItemList();
+int setupErrorMessages();
+int debugPrintf(char msg[DEF_SIZE_DEBUG_MESSAGE], ...);
+uint8_t exitError(int x);
+int processArgs(int argc, char *argv[]);
+void *addMalloc(int memSize);
+int addItem(MapItem *mapItem);
+int searchMapsLine(MapItem *mapItem);
+int processMapsFile();
+int doFork(char *argv[]);
+int iterateLinkedList();
+int identifyCommonStrings();
+int outputCommonStrings();

@@ -7,3 +7,4 @@
 #define DEF_ERROR_40 "Connection failed"
 #define DEF_ERROR_50 "Could not resolve domain"
 #define DEF_ERROR_60 "fd problem"
+#define DEF_ERROR_70 "NULL pointer exception"
