@@ -19,28 +19,26 @@ unsigned int argRuns, argSecs;
 
 Error error[DEF_SIZE_ERROR_INSTANCES];
 
-MapItem *mapItem;
-MapItemRef mapItemRef;
-MallocTable *mallocTable;
-
-int setupMallocTable()
+int setupMallocTable(MallocTable *mallocTable)
 {
-   mallocTable = malloc(sizeof(MallocTable));
+/*   mallocTable = malloc(sizeof(MallocTable));
 
+   debugPrintf("setupMallocTable mallocTable == %x\n",mallocTable);
    if (NULL == mallocTable)
    {
-      /* malloc problem, bail */
+      // malloc problem, bail
       exitError(20);
    }
+*/
 
    mallocTable->prev = NULL;
    mallocTable->next = NULL;
 }
 
-int setupMapItemList()
+int setupMapItemList(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable)
 {
-   mapItem = addMalloc(sizeof(MapItem));
-   mapItemRef.base = mapItem;
+   mapItem = addMalloc(sizeof(MapItem),mallocTable);
+   mapItemRef->base = mapItem;
 
    mapItem->prev = NULL;
    mapItem->next = NULL;
@@ -50,60 +48,60 @@ int setupErrorMessages()
 {
    //DEF_ERROR_1 "Could not find error message for error number, you shouldn't really see this.."
    error[1].number = 1;
-   strcpy(error[1].message, DEF_ERROR_1);
+   strcpy(error[1].message,DEF_ERROR_1);
    error[1].log = 0x0;
 
    //DEF_ERROR_10 "Missing argument"
    error[10].number = 10;
-   strcpy(error[10].message, DEF_ERROR_10);
+   strcpy(error[10].message,DEF_ERROR_10);
    error[10].log = 0x0;
 
    //DEF_ERROR_20 "Could not malloc"
    error[20].number = 20;
-   strcpy(error[20].message, DEF_ERROR_20);
+   strcpy(error[20].message,DEF_ERROR_20);
    error[20].log = 0x0;
 
    //DEF_ERROR_30 "IP address supplied is not a valid v4 address"
    error[30].number = 30;
-   strcpy(error[30].message, DEF_ERROR_30);
+   strcpy(error[30].message,DEF_ERROR_30);
    error[30].log = 0x0;
 
    //DEF_ERROR_31 "Domain is not valid"
    error[31].number = 31;
-   strcpy(error[31].message, DEF_ERROR_31);
+   strcpy(error[31].message,DEF_ERROR_31);
    error[31].log = 0x0;
 
    //DEF_ERROR_40 "Connection failed"
    error[40].number = 40;
-   strcpy(error[40].message, DEF_ERROR_40);
+   strcpy(error[40].message,DEF_ERROR_40);
    error[40].log = 0x0;
 
    //DEF_ERROR_50 "Could not resolve domain"
    error[50].number = 50;
-   strcpy(error[50].message, DEF_ERROR_50);
+   strcpy(error[50].message,DEF_ERROR_50);
    error[50].log = 0x0;
 
    //DEF_ERROR_60 "fd problem"
    error[60].number = 60;
-   strcpy(error[60].message, DEF_ERROR_60);
+   strcpy(error[60].message,DEF_ERROR_60);
    error[60].log = 0x0;
 
    //DEF_ERROR_70 "NULL pointer exception"
    error[70].number = 70;
-   strcpy(error[70].message, DEF_ERROR_70);
+   strcpy(error[70].message,DEF_ERROR_70);
    error[70].log = 0x0;
 
    return 0;
 }
 
-int debugPrintf(char msg[DEF_SIZE_DEBUG_MESSAGE], ...)
+int debugPrintf(char msg[DEF_SIZE_DEBUG_MESSAGE],...)
 {
    if (1 == argDebug)
    {
       va_list args;
-      va_start(args, msg);
+      va_start(args,msg);
 
-      vprintf(msg, args);
+      vprintf(msg,args);
 
       va_end(args);
    }
@@ -113,19 +111,19 @@ int debugPrintf(char msg[DEF_SIZE_DEBUG_MESSAGE], ...)
 
 uint8_t exitError(int x)
 {
-   printf("Error %d: %s\n", error[x].number, error[x].message);
+   printf("Error %d: %s\n",error[x].number,error[x].message);
 
    exit(error[x].number); /* exit(x) ? */
 }
 
-int processArgs(int argc, char *argv[])
+int processArgs(int argc,char *argv[])
 {
    /* arg 1 is number of runs, arg 2 is seconds to wait before
       sampling, arg 3 is binary to run and arg 4 ... N are arguments */
    /* ./memmap <runs> <secs> <binary> args */
    /* I know it's pikey I'll fix it later maybe (not) */
 
-   debugPrintf("processArgs argc == %d\n", argc);
+   debugPrintf("processArgs argc == %d\n",argc);
 
    if (argc < 4)
    {
@@ -141,14 +139,14 @@ int processArgs(int argc, char *argv[])
       exitError(11);
    }
 
-   debugPrintf("processArgs argRuns == %d\n", argRuns);
-   debugPrintf("processArgs argSecs == %d\n", argSecs);
+   debugPrintf("processArgs argRuns == %d\n",argRuns);
+   debugPrintf("processArgs argSecs == %d\n",argSecs);
 
    return 0;
 }
 
-/* Make generic */
-void *addMalloc(int memSize)
+/* TODO Make generic */
+void *addMalloc(int memSize,MallocTable *mallocTable)
 {
    void *doMalloc = NULL;
 
@@ -187,7 +185,7 @@ void *addMalloc(int memSize)
    return doMalloc;
 }
 
-MapItem *processMapItemString(MapItem *mapItem, char *mapItemStr)
+MapItem *processMapItemString(MapItem mapItem,char *mapItemStr)
 {
    /* Nasty function is nasty */
    /* address           perms offset  dev   inode       pathname */
@@ -198,56 +196,56 @@ MapItem *processMapItemString(MapItem *mapItem, char *mapItemStr)
    char *strCursor = mapItemStr, *pathnameStr;
    int desiredTempMapItemCount;
 
-   debugPrintf("processMapItemString mapItemStr == %s", mapItemStr);
+   debugPrintf("processMapItemString mapItemStr == %s",mapItemStr);
 
    /*** BASE ADDRESS ***/
-   baseAddress = strtoull(mapItemStr, &strCursor, 16);
-   debugPrintf("processMapItemString strtoull base address == %p\n", (void *) baseAddress);
-   debugPrintf("processMapItemString strCursor == %p\n", (void *) strCursor);
+   baseAddress = strtoull(mapItemStr,&strCursor,16);
+   debugPrintf("processMapItemString strtoull base address == %p\n",(void *) baseAddress);
+   debugPrintf("processMapItemString strCursor == %p\n",(void *) strCursor);
 
    mapItemStr = strCursor + 1;
-   debugPrintf("processMapItemString mapItemStr == %s\n", mapItemStr);
+   debugPrintf("processMapItemString mapItemStr == %s\n",mapItemStr);
 
    /*** END ADDRESS ***/
-   endAddress = strtoull(mapItemStr, &strCursor, 16);
-   debugPrintf("processMapItemString strtoull end address == %p\n", (void *) endAddress);
+   endAddress = strtoull(mapItemStr,&strCursor,16);
+   debugPrintf("processMapItemString strtoull end address == %p\n",(void *) endAddress);
 
-   /* size_t strcspn(const char *s, const char *reject); */
+   /* size_t strcspn(const char *s,const char *reject); */
    mapItemStr = strCursor + 1;
 
    /*** PERMISSIONS ***/
-   strcpy(permissions, mapItemStr); /* TODO validate char * large enough */
+   strcpy(permissions,mapItemStr); /* TODO validate char * large enough */
 
-   desiredTempMapItemCount = strcspn(mapItemStr, " ");
+   desiredTempMapItemCount = strcspn(mapItemStr," ");
    permissions[desiredTempMapItemCount] = '\0';
 
-   debugPrintf("processMapItemString permissions == %s\n", permissions);
+   debugPrintf("processMapItemString permissions == %s\n",permissions);
 
    /*** OFFSET ***/
-   strcpy(offsetStr, (mapItemStr + desiredTempMapItemCount + 1)); /* TODO validate offset large enough */
+   strcpy(offsetStr,(mapItemStr + desiredTempMapItemCount + 1)); /* TODO validate offset large enough */
    strCursor = offsetStr;
-   offset = strtoull(offsetStr, &strCursor, 16);
+   offset = strtoull(offsetStr,&strCursor,16);
 
-   debugPrintf("processMapItemString offset == %llx\n", offset);
+   debugPrintf("processMapItemString offset == %llx\n",offset);
 
    /*** DEVICE ***/
-   strcpy(device, strCursor + 1); /* TODO validate char * large enough */
+   strcpy(device,strCursor + 1); /* TODO validate char * large enough */
 
-   desiredTempMapItemCount = strcspn(device, " ");
+   desiredTempMapItemCount = strcspn(device," ");
    device[desiredTempMapItemCount] = '\0';
 
-   debugPrintf("processMapItemString device == %s\n", device);
+   debugPrintf("processMapItemString device == %s\n",device);
 
    /*** INODE ***/
-   strcpy(inode, (device + desiredTempMapItemCount + 1)); /* TODO validate char * large enough */
+   strcpy(inode,(device + desiredTempMapItemCount + 1)); /* TODO validate char * large enough */
 
-   desiredTempMapItemCount = strcspn(device, " ");
+   desiredTempMapItemCount = strcspn(device," ");
    inode[desiredTempMapItemCount] = '\0';
 
-   debugPrintf("processMapItemString inode == %s\n", inode);
+   debugPrintf("processMapItemString inode == %s\n",inode);
 
    /*** PATHNAME ***/
-   strcpy(pathname, (inode + desiredTempMapItemCount + 1)); /* TODO validate char * large enough */
+   strcpy(pathname,(inode + desiredTempMapItemCount + 1)); /* TODO validate char * large enough */
    pathnameStr = pathname;
 
    while(isspace(*pathnameStr))
@@ -255,17 +253,17 @@ MapItem *processMapItemString(MapItem *mapItem, char *mapItemStr)
       pathnameStr++;
    }
 
-   debugPrintf("processMapItemString pathname == %s\n", pathnameStr);
+   debugPrintf("processMapItemString pathname == %s\n",pathnameStr);
    debugPrintf("\n");
 
    /* Shove into data structure */
-   mapItem->baseAddress = baseAddress;
-   mapItem->endAddress = endAddress;
-   strcpy(mapItem->permissions, permissions);
-   mapItem->offset = offset;
-   strcpy(mapItem->device, device);
-   strcpy(mapItem->inode, inode); /* TODO inode should be a number */
-   strcpy(mapItem->pathname, pathnameStr);
+   mapItem.baseAddress = baseAddress;
+   mapItem.endAddress = endAddress;
+   strcpy(mapItem.permissions,permissions);
+   mapItem.offset = offset;
+   strcpy(mapItem.device,device);
+   strcpy(mapItem.inode,inode); /* TODO inode should be a number */
+   strcpy(mapItem.pathname,pathnameStr);
 
    return 0;
 }
@@ -273,14 +271,16 @@ MapItem *processMapItemString(MapItem *mapItem, char *mapItemStr)
 /* Add item to the list, and populates with string (which should be from /proc/[pid]/maps file */
 /* context var can be 't' or nothing. If 't'(emp), then don't add new list item first, because this */
 /* is a temporary data struct */
-int addItem(MapItem *mapItem)
+int addItem(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable)
 {
    MapItem *oldMapItem;
    /* store for next list item prev assignment */
    oldMapItem = mapItem;
 
    /* new next */
-   mapItem->next = addMalloc(sizeof(MapItem));
+   debugPrintf("addItem mallocTable == %x\n",mallocTable);
+   mapItem->next = addMalloc(sizeof(MapItem),mallocTable);
+   debugPrintf("addItem mapItem->next == %x\n",mapItem->next);
    /* current becomes next */
    mapItem = mapItem->next;
    /* prev becomes current */
@@ -288,13 +288,13 @@ int addItem(MapItem *mapItem)
    /* next becomes NULL */
    mapItem->next = NULL;
    /* Set end item so we know */
-   mapItemRef.end = mapItem;
+   mapItemRef->end = mapItem;
 
    return 0;
 }
 
 /* Should return non-zero if item in list */
-int searchMapsLine(MapItem *mapItem)
+int searchMapsLine()
 {
    /* Process maps line */
    /* For each item in list */
@@ -305,7 +305,7 @@ int searchMapsLine(MapItem *mapItem)
 }
 
 /* Open maps file and read each line */
-int processMapsFile(pid_t childPID)
+int processMapsFile(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable,pid_t childPID)
 {
    /* Open file */
    FILE *fd;
@@ -315,55 +315,55 @@ int processMapsFile(pid_t childPID)
    int saved_errno;
 
    /* Get maps filename                                 -1 ? */
-   snprintf(mapsFilenameString, sizeof(mapsFilenameString), "/proc/%d/maps", childPID);
+   snprintf(mapsFilenameString,sizeof(mapsFilenameString),"/proc/%d/maps",childPID);
 
-   debugPrintf("processMapsFile mapsFilenameString == %s\n", mapsFilenameString);
+   debugPrintf("processMapsFile mapsFilenameString == %s\n",mapsFilenameString);
 
-   fd = fopen(mapsFilenameString, "r");
+   fd = fopen(mapsFilenameString,"r");
    if (fd < 0)
    {
       exitError(60);
    }
 
-   debugPrintf("processMapsFile fd == %x\n", fd);
+   debugPrintf("processMapsFile fd == %x\n",fd);
 
    /* Iterate each line */
    while (fgets(buf,sizeof(buf),fd) != NULL) /* TODO check buffer overflow potential */
    {
-      //debugPrintf("processMapsFile buf == %s", buf);
+      //debugPrintf("processMapsFile buf == %s",buf);
       /* Process the string and add to the list item */
       /* Can only approximate boundaries for maps file parameters */
       /* Would be nice to know what the variables were .. */
-      processMapItemString(mapItem, buf);
+      processMapItemString(*mapItem,buf);
 
-      addItem(mapItem);
+      addItem(mapItem,mapItemRef,mallocTable);
    }
 
    return 0;
 }
 
-int compareMapsList()
+int compareMapsList(MapItemRef *mapItemRef)
 {
    MapItem *currentMapItem, *endMapItem;
 
-   endMapItem = mapItemRef.end;
-   currentMapItem = mapItemRef.base;
+   endMapItem = mapItemRef->end;
+   currentMapItem = mapItemRef->base;
    /* Comparison paramters. Base address and permissions (and pathname/heap/stack?) */
 
    /* Starting from beginning, iterate over list to n-1 */
-   while(currentMapItem != endMapItem)
+   while(&currentMapItem != &endMapItem)
    {
       /* if baseAddress is the same */
       if (currentMapItem->baseAddress == endMapItem->baseAddress)
       {
          /* if permissions are the same */
-         if (strcmp(currentMapItem->permissions, endMapItem->permissions) == 0)
+         if (strcmp(currentMapItem->permissions,endMapItem->permissions) == 0)
          {
             /* if pathname/heap/stack is the same? */
             currentMapItem->count++;
 
             /* Get rid of the last item in the list TODO */
-            currentMapItem = mapItemRef.end;
+            currentMapItem = mapItemRef->end;
             currentMapItem = currentMapItem->prev;
             currentMapItem->next = NULL;
 
@@ -378,7 +378,7 @@ int compareMapsList()
    return 0;
 }
 
-int doFork(char *argv[])
+int doFork(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable,char *argv[])
 {
    pid_t childPID;
    int var_lcl = 0, i = 0, childRetStatus = 0;
@@ -393,25 +393,25 @@ int doFork(char *argv[])
          if(0 == childPID) /* child proc */
          {
             debugPrintf("doFork execv(%s, %x)\n",argv[3],&argv[3]);
-            execv(argv[3], &argv[3]);
+            execv(argv[3],&argv[3]);
          }
          else /* parent proc */
          {
             debugPrintf("doFork parent\n");
-            debugPrintf("doFork argSecs == %d\n", argSecs);
+            debugPrintf("doFork argSecs == %d\n",argSecs);
 
             sleep(argSecs);
             /* Process maps file */
-            processMapsFile(childPID);
+            processMapsFile(mapItem,mapItemRef,mallocTable,childPID);
             /* Current process maps file will always be added to the end of the list as data struct */
             /* If a match is found in the list, then the count for that item is incremented */
             /* and the last item is dereferenced. Otherwise, keep the last item and move on */
-            compareMapsList();
+            compareMapsList(mapItemRef);
             /* kill child */
-            kill(childPID, SIGTERM);
+            kill(childPID,SIGTERM);
          }
          /* waitfor? */
-         waitpid(childPID, &childRetStatus, 0);
+         waitpid(childPID,&childRetStatus,0);
       }
       else /* fork failed */
       {
@@ -423,49 +423,53 @@ int doFork(char *argv[])
    return 0;
 }
 
-int iterateLinkedList()
+int iterateLinkedList(MapItem *mapItem,MapItemRef *mapItemRef)
 {
-   mapItem = mapItemRef.base;
+   mapItem = mapItemRef->base;
 
+   debugPrintf("iterateLinkedList mapItem->prev: %x\n",mapItem->next);
    while(mapItem->next != NULL)
    {
       /* address           perms offset  dev   inode       pathname */
-      printf("Base Address: %llx\n", mapItem->baseAddress);
-      printf("End Address: %llx\n", mapItem->endAddress);
-      printf("Permissions: %s\n", mapItem->permissions);
-      printf("Offset: %llx\n", mapItem->offset);
-      printf("Device: %s\n", mapItem->device);
-      printf("Inode: %s\n", mapItem->inode);
-      printf("Pathname: %s\n", mapItem->pathname);
-      printf("Count: %d\n", mapItem->count);
-      debugPrintf("next: %d\n", mapItem->next);
+      printf("iterateLinkedList Base Address: %llx\n",mapItem->baseAddress);
+      printf("iterateLinkedList End Address: %llx\n",mapItem->endAddress);
+      printf("iterateLinkedList Permissions: %s\n",mapItem->permissions);
+      printf("iterateLinkedList Offset: %llx\n",mapItem->offset);
+      printf("iterateLinkedList Device: %s\n",mapItem->device);
+      printf("iterateLinkedList Inode: %s\n",mapItem->inode);
+      printf("iterateLinkedList Pathname: %s\n",mapItem->pathname);
+      printf("iterateLinkedList Count: %d\n",mapItem->count);
+      debugPrintf("iterateLinkedList next: %x\n",mapItem->next);
       printf("\n");
       mapItem = mapItem->next;
-      printf("Base Address: %llx\n", mapItem->baseAddress);
-      printf("End Address: %llx\n", mapItem->endAddress);
-      printf("Permissions: %s\n", mapItem->permissions);
-      printf("Offset: %llx\n", mapItem->offset);
-      printf("Device: %s\n", mapItem->device);
-      printf("Inode: %s\n", mapItem->inode);
-      printf("Pathname: %s\n", mapItem->pathname);
-      printf("Count: %d\n", mapItem->count);
-      debugPrintf("next: %d\n", mapItem->next);
+      printf("iterateLinkedList Base Address: %llx\n",mapItem->baseAddress);
+      printf("iterateLinkedList End Address: %llx\n",mapItem->endAddress);
+      printf("iterateLinkedList Permissions: %s\n",mapItem->permissions);
+      printf("iterateLinkedList Offset: %llx\n",mapItem->offset);
+      printf("iterateLinkedList Device: %s\n",mapItem->device);
+      printf("iterateLinkedList Inode: %s\n",mapItem->inode);
+      printf("iterateLinkedList Pathname: %s\n",mapItem->pathname);
+      printf("iterateLinkedList Count: %d\n",mapItem->count);
+      debugPrintf("iterateLinkedList next: %d\n",mapItem->next);
       printf("\n");
-      debugPrintf("next: %d\n", mapItem->next);
    }
 
    return 0;
 }
 
-int main(int argc, char *argv[])
+int main(int argc,char *argv[])
 {
+   MapItem mapItem;
+   MapItemRef mapItemRef;
+   MallocTable mallocTable;
+
    setupErrorMessages();
-   setupMallocTable();
-   setupMapItemList();
+   setupMallocTable(&mallocTable);
+   setupMapItemList(&mapItem,&mapItemRef,&mallocTable);
    processArgs(argc,argv);
 
-   doFork(argv);
-   iterateLinkedList();
-   debugPrintf("main mapItemRef.base == %p\n", mapItemRef.base);
-   debugPrintf("main mapItemRef.end == %p\n", mapItemRef.end);
+   doFork(&mapItem,&mapItemRef,&mallocTable,argv);
+   iterateLinkedList(&mapItem,&mapItemRef);
+   debugPrintf("main mapItemRef.base == %p\n",mapItemRef.base);
+   debugPrintf("main mapItemRef.end == %p\n",mapItemRef.end);
 }

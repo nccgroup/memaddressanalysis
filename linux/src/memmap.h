@@ -44,16 +44,16 @@ struct MallocTable {
 };
 
 /* FUNCTIONS! */
-int setupMapItemList();
+int setupMapItemList(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable);
 int setupErrorMessages();
 int debugPrintf(char msg[DEF_SIZE_DEBUG_MESSAGE], ...);
 uint8_t exitError(int x);
 int processArgs(int argc, char *argv[]);
-void *addMalloc(int memSize);
-int addItem(MapItem *mapItem);
-int searchMapsLine(MapItem *mapItem);
-int processMapsFile();
-int doFork(char *argv[]);
-int iterateLinkedList();
+void *addMalloc(int memSize, MallocTable *mallocTable);
+int addItem(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable);
+int searchMapsLine();
+int processMapsFile(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable,pid_t childPID);
+int doFork(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable,char *argv[]);
+int iterateLinkedList(MapItem *mapItem,MapItemRef *mapItemRef);
 int identifyCommonStrings();
 int outputCommonStrings();
