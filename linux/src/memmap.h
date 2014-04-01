@@ -18,7 +18,9 @@ struct Error {
 /* Linked list reference for MapItem, only base for now */
 struct MapItemRef {
    MapItem *base;
+   MapItem *current;
    MapItem *end;
+   int itemCount;
 };
 
 /* Single item */
