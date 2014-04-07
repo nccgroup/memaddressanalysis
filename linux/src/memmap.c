@@ -13,7 +13,7 @@
 #include "../src/def_sizes.h"
 #include "../src/memmap.h"
 
-int var_glb, argDebug = 1;
+int var_glb, argDebug = 0;
 
 unsigned int argRuns, argSecs;
 
@@ -38,13 +38,9 @@ int setupMallocTable(MallocTable *mallocTable)
 int setupMapItemList(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable)
 {
    //mapItem = addMalloc(sizeof(MapItem),mallocTable);
-   mapItemRef->base = mapItem;
-   mapItemRef->current = mapItem;
+   /* BUG */
+   //mapItemRef->current = mapItem;
    mapItemRef->itemCount = 0;
-
-   mapItem->count = 0;
-   mapItem->prev = NULL;
-   mapItem->next = NULL;
 }
 
 int setupErrorMessages()
@@ -257,7 +253,10 @@ MapItem *processMapItemString(MapItem *mapItem,char *mapItemStr)
    }
 
    debugPrintf("processMapItemString pathname == %s\n",pathnameStr);
-   debugPrintf("\n");
+   debugPrintf("processMapItemString baseAddress == %x\n",baseAddress);
+   //debugPrintf("processMapItemString mapItem->baseAddress == %x\n",mapItem->baseAddress);
+   debugPrintf("processMapItemString mapItem == %p\n",mapItem);
+   fflush(stdout);
 
    /* Shove into data structure */
    mapItem->baseAddress = baseAddress;
@@ -274,31 +273,49 @@ MapItem *processMapItemString(MapItem *mapItem,char *mapItemStr)
 /* Add item to the list, and populates with string (which should be from /proc/[pid]/maps file */
 /* context var can be 't' or nothing. If 't'(emp), then don't add new list item first, because this */
 /* is a temporary data struct */
+/* BUG - Not convinced mapItemRef->itemCount is correct (off by 1) */
 int addItem(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable)
 {
-   MapItem *oldMapItem;
-   /* store for next list item prev assignment */
-   oldMapItem = mapItem;
-
    /* new next */
    debugPrintf("addItem mallocTable == %p\n",mallocTable);
-   mapItem->next = addMalloc(sizeof(MapItem),mallocTable);
+
+   if (mapItemRef->itemCount == 0)
+   {
+      /* If first item */
+      mapItem = addMalloc(sizeof(MapItem),mallocTable);
+      mapItem->prev = NULL;
+      /* Debug code */
+      mapItem->baseAddress = 123;
+      debugPrintf("addItem mapItem->baseAddress == %x\n",mapItem->baseAddress);
+      debugPrintf("addItem mapItem == %p\n",mapItem);
+      /* Set mapItemRef->base to the first mapItem */
+      mapItemRef->base = mapItem;
+   } else {
+      MapItem *oldMapItem;
+      /* store for next list item prev assignment */
+      oldMapItem = mapItem;
+
+      /* Not first item */
+      mapItem->next = addMalloc(sizeof(MapItem),mallocTable);
+      /* current becomes next */
+      mapItem = mapItem->next;
+      /* prev becomes current */
+      mapItem->prev = oldMapItem;
+   }
+
+   /* Should happen regardless of first or nth item */
    /* increment itemCount in mapItemRef */
    mapItemRef->itemCount++;
    debugPrintf("addItem mapItem->next == %p\n",mapItem->next);
-   /* set count to zero */
-   mapItem->count = 0;
-   /* current becomes next */
-   mapItem = mapItem->next;
-   /* prev becomes current */
-   mapItem->prev = oldMapItem;
    /* next becomes NULL */
    mapItem->next = NULL;
+   /* set count to zero */
+   mapItem->count = 0;
    /* Set end item so we know */
    mapItemRef->end = mapItem;
-   debugPrintf("addItem mapItem == %p\n",mapItem);
    /* Set current mapItem to new malloc */
    mapItemRef->current = mapItem;
+   debugPrintf("addItem mapItem == %p\n",mapItem);
 
    return 0;
 }
@@ -340,13 +357,18 @@ int processMapsFile(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocT
    /* Iterate each line */
    while (fgets(buf,sizeof(buf),fd) != NULL) /* TODO check buffer overflow potential */
    {
+      addItem(mapItemRef->current,mapItemRef,mallocTable);
+
       //debugPrintf("processMapsFile buf == %s",buf);
       /* Process the string and add to the list item */
       /* Can only approximate boundaries for maps file parameters */
       /* Would be nice to know what the variables were .. */
       processMapItemString(mapItemRef->current,buf);
 
-      addItem(mapItemRef->current,mapItemRef,mallocTable);
+      /* Current process maps file will always be added to the end of the list as data struct */
+      /* If a match is found in the list, then the count for that item is incremented */
+      /* and the last item is dereferenced. Otherwise, keep the last item and move on */
+      compareMapsList(mapItemRef);
    }
 
    return 0;
@@ -358,29 +380,62 @@ int compareMapsList(MapItemRef *mapItemRef)
 
    endMapItem = mapItemRef->end;
    currentMapItem = mapItemRef->base;
+
    fflush(stdout);
    /* Comparison paramters. Base address and permissions (and pathname/heap/stack?) */
    debugPrintf("compareMapsList endMapItem == %p\n",endMapItem);
    debugPrintf("compareMapsList mapItemRef == %p\n",mapItemRef);
-
+   debugPrintf("compareMapsList mapItemRef->base == %p\n",mapItemRef->base);
+   debugPrintf("compareMapsList mapItemRef->end == %p\n",mapItemRef->end);
    debugPrintf("compareMapsList currentMapItem->baseAddress == %x\n",currentMapItem->baseAddress);
    debugPrintf("compareMapsList endMapItem->baseAddress == %x\n",endMapItem->baseAddress);
+
    /* Starting from beginning, iterate over list to n-1 */
-   while(&currentMapItem != &endMapItem)
+   while(currentMapItem != endMapItem)
    {
       /* if baseAddress is the same */
       if (currentMapItem->baseAddress == endMapItem->baseAddress)
       {
+         /* address           perms offset  dev   inode       pathname */
+         debugPrintf("compareMapsList currentMapItem Base Address: %llx\n",currentMapItem->baseAddress);
+         debugPrintf("compareMapsList currentMapItem End Address: %llx\n",currentMapItem->endAddress);
+         debugPrintf("compareMapsList currentMapItem Permissions: %s\n",currentMapItem->permissions);
+         debugPrintf("compareMapsList currentMapItem Offset: %llx\n",currentMapItem->offset);
+         debugPrintf("compareMapsList currentMapItem Device: %s\n",currentMapItem->device);
+         debugPrintf("compareMapsList currentMapItem Inode: %s\n",currentMapItem->inode);
+         debugPrintf("compareMapsList currentMapItem Pathname: %s\n",currentMapItem->pathname);
+         debugPrintf("compareMapsList currentMapItem Count: %d\n",currentMapItem->count);
+         debugPrintf("compareMapsList next: %p\n",currentMapItem->next);
+         debugPrintf("\n");
+
+         /* address           perms offset  dev   inode       pathname */
+         debugPrintf("compareMapsList endMapItem Base Address: %llx\n",endMapItem->baseAddress);
+         debugPrintf("compareMapsList endMapItem End Address: %llx\n",endMapItem->endAddress);
+         debugPrintf("compareMapsList endMapItem Permissions: %s\n",endMapItem->permissions);
+         debugPrintf("compareMapsList endMapItem Offset: %llx\n",endMapItem->offset);
+         debugPrintf("compareMapsList endMapItem Device: %s\n",endMapItem->device);
+         debugPrintf("compareMapsList endMapItem Inode: %s\n",endMapItem->inode);
+         debugPrintf("compareMapsList endMapItem Pathname: %s\n",endMapItem->pathname);
+         debugPrintf("compareMapsList endMapItem Count: %d\n",endMapItem->count);
+         debugPrintf("compareMapsList next: %p\n",endMapItem->next);
+         debugPrintf("\n");
+
+         //getchar();
+
          /* if permissions are the same */
          if (strcmp(currentMapItem->permissions,endMapItem->permissions) == 0)
          {
+            debugPrintf("iterateLinkedList strcmp hit\n");
+            //getchar();
+
             /* if pathname/heap/stack is the same? */
             currentMapItem->count++;
 
-            /* Get rid of the last item in the list TODO */
-            currentMapItem = mapItemRef->end;
+            /* Get rid of the last item in the list TODO free and shi.. stuff */
+            mapItemRef->end = currentMapItem->prev;
+            /*currentMapItem = mapItemRef->end;
             currentMapItem = currentMapItem->prev;
-            currentMapItem->next = NULL;
+            currentMapItem->next = NULL;*/
 
             return 0;
          }
@@ -418,10 +473,6 @@ int doFork(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable,char
             sleep(argSecs);
             /* Process maps file */
             processMapsFile(mapItemRef->current,mapItemRef,mallocTable,childPID);
-            /* Current process maps file will always be added to the end of the list as data struct */
-            /* If a match is found in the list, then the count for that item is incremented */
-            /* and the last item is dereferenced. Otherwise, keep the last item and move on */
-            compareMapsList(mapItemRef);
             /* kill child */
             kill(childPID,SIGTERM);
          }
@@ -448,28 +499,31 @@ int iterateLinkedList(MapItem *mapItem,MapItemRef *mapItemRef)
    debugPrintf("iterateLinkedList mapItem->prev: %p\n",mapItem->prev);
    while(mapItem->next != NULL)
    {
-      /* address           perms offset  dev   inode       pathname */
-      printf("iterateLinkedList Base Address: %llx\n",mapItem->baseAddress);
-      printf("iterateLinkedList End Address: %llx\n",mapItem->endAddress);
-      printf("iterateLinkedList Permissions: %s\n",mapItem->permissions);
-      printf("iterateLinkedList Offset: %llx\n",mapItem->offset);
-      printf("iterateLinkedList Device: %s\n",mapItem->device);
-      printf("iterateLinkedList Inode: %s\n",mapItem->inode);
-      printf("iterateLinkedList Pathname: %s\n",mapItem->pathname);
-      printf("iterateLinkedList Count: %d\n",mapItem->count);
-      debugPrintf("iterateLinkedList next: %p\n",mapItem->next);
-      printf("\n");
+      if (mapItem->count > 0)
+      {
+         /* address           perms offset  dev   inode       pathname */
+         printf("iterateLinkedList Base Address: %llx\n",mapItem->baseAddress);
+         printf("iterateLinkedList End Address: %llx\n",mapItem->endAddress);
+         printf("iterateLinkedList Permissions: %s\n",mapItem->permissions);
+         printf("iterateLinkedList Offset: %llx\n",mapItem->offset);
+         printf("iterateLinkedList Device: %s\n",mapItem->device);
+         printf("iterateLinkedList Inode: %s\n",mapItem->inode);
+         printf("iterateLinkedList Pathname: %s\n",mapItem->pathname);
+         printf("iterateLinkedList Count: %d\n",mapItem->count);
+         debugPrintf("iterateLinkedList next: %p\n",mapItem->next);
+         printf("\n");
+         /*printf("iterateLinkedList Base Address: %llx\n",mapItem->baseAddress);
+         printf("iterateLinkedList End Address: %llx\n",mapItem->endAddress);
+         printf("iterateLinkedList Permissions: %s\n",mapItem->permissions);
+         printf("iterateLinkedList Offset: %llx\n",mapItem->offset);
+         printf("iterateLinkedList Device: %s\n",mapItem->device);
+         printf("iterateLinkedList Inode: %s\n",mapItem->inode);
+         printf("iterateLinkedList Pathname: %s\n",mapItem->pathname);
+         printf("iterateLinkedList Count: %d\n",mapItem->count);
+         debugPrintf("iterateLinkedList next: %d\n",mapItem->next);
+         printf("\n");*/
+      }
       mapItem = mapItem->next;
-      /*printf("iterateLinkedList Base Address: %llx\n",mapItem->baseAddress);
-      printf("iterateLinkedList End Address: %llx\n",mapItem->endAddress);
-      printf("iterateLinkedList Permissions: %s\n",mapItem->permissions);
-      printf("iterateLinkedList Offset: %llx\n",mapItem->offset);
-      printf("iterateLinkedList Device: %s\n",mapItem->device);
-      printf("iterateLinkedList Inode: %s\n",mapItem->inode);
-      printf("iterateLinkedList Pathname: %s\n",mapItem->pathname);
-      printf("iterateLinkedList Count: %d\n",mapItem->count);
-      debugPrintf("iterateLinkedList next: %d\n",mapItem->next);
-      printf("\n");*/
    }
 
    return 0;
@@ -477,18 +531,18 @@ int iterateLinkedList(MapItem *mapItem,MapItemRef *mapItemRef)
 
 int main(int argc,char *argv[])
 {
-   MapItem mapItem;
+   MapItem *mapItem;
    MapItemRef mapItemRef;
    MallocTable mallocTable;
 
    setupErrorMessages();
    setupMallocTable(&mallocTable);
-   setupMapItemList(&mapItem,&mapItemRef,&mallocTable);
+   setupMapItemList(mapItem,&mapItemRef,&mallocTable);
    processArgs(argc,argv);
 
-   doFork(&mapItem,&mapItemRef,&mallocTable,argv);
-   iterateLinkedList(&mapItem,&mapItemRef);
+   doFork(mapItem,&mapItemRef,&mallocTable,argv);
+   iterateLinkedList(mapItem,&mapItemRef);
    debugPrintf("main mapItemRef.base == %p\n",mapItemRef.base);
    debugPrintf("main mapItemRef.end == %p\n",mapItemRef.end);
-   debugPrintf("main mapItem.next == %p\n",mapItem.next);
+   //debugPrintf("main mapItem->next == %p\n",mapItem->next);
 }
