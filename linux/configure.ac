@@ -4,7 +4,7 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_SRCDIR([src/memmap.c])
 AC_INIT([project-main], [0.1], [aidan.marlin+github@gmail.com])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
-PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
+#PKG_CHECK_MODULES([CHECK], [check >= 0.9.4])
 # Checks for programs.
 AC_PROG_CC
 AM_PROG_CC_C_O

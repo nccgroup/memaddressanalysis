@@ -13,7 +13,10 @@
 #include "../src/def_sizes.h"
 #include "../src/memmap.h"
 
-int var_glb, argDebug = 0;
+/* TODO Firefox will launch a new window in an existing process instead of play ball
+        with child process. To fix, export MOZ_NO_REMOTE=1 before running firefox instance */
+
+int var_glb, argDebug = 1;
 
 unsigned int argRuns, argSecs;
 
@@ -284,10 +287,9 @@ int addItem(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable)
       /* If first item */
       mapItem = addMalloc(sizeof(MapItem),mallocTable);
       mapItem->prev = NULL;
-      /* Debug code */
-      mapItem->baseAddress = 123;
       debugPrintf("addItem mapItem->baseAddress == %x\n",mapItem->baseAddress);
       debugPrintf("addItem mapItem == %p\n",mapItem);
+      debugPrintf("addItem mapItem->next == %p\n",mapItem->next);
       /* Set mapItemRef->base to the first mapItem */
       mapItemRef->base = mapItem;
    } else {
@@ -299,6 +301,7 @@ int addItem(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable)
       mapItem->next = addMalloc(sizeof(MapItem),mallocTable);
       /* current becomes next */
       mapItem = mapItem->next;
+      debugPrintf("*** addItem mapItem->next == %p\n",mapItem->next);
       /* prev becomes current */
       mapItem->prev = oldMapItem;
    }
@@ -345,7 +348,6 @@ int processMapsFile(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocT
    snprintf(mapsFilenameString,sizeof(mapsFilenameString),"/proc/%d/maps",childPID);
 
    debugPrintf("processMapsFile mapsFilenameString == %s\n",mapsFilenameString);
-
    fd = fopen(mapsFilenameString,"r");
    if (fd < 0)
    {
@@ -451,7 +453,7 @@ int compareMapsList(MapItemRef *mapItemRef)
 int doFork(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable,char *argv[])
 {
    pid_t childPID;
-   int var_lcl = 0, i = 0, childRetStatus = 0;
+   int var_lcl = 0, i = 0, childRetStatus = 0, killResult = 0;
 
    /* Run specified times */
    for(i=0;i<argRuns;i++)
@@ -469,17 +471,19 @@ int doFork(MapItem *mapItem,MapItemRef *mapItemRef,MallocTable *mallocTable,char
          {
             debugPrintf("doFork parent\n");
             debugPrintf("doFork argSecs == %d\n",argSecs);
+            debugPrintf("doFork childPID == %d\n",childPID);
 
             sleep(argSecs);
             /* Process maps file */
             processMapsFile(mapItemRef->current,mapItemRef,mallocTable,childPID);
             /* kill child */
-            kill(childPID,SIGTERM);
+            killResult = kill(childPID,SIGTERM);
+            debugPrintf("doFork killResult == %d\n",killResult);
          }
          /* waitfor? */
          waitpid(childPID,&childRetStatus,0);
       }
-      else /* fork failed */
+      else /* fork failed (should be handled with error function) */
       {
          printf("\n Fork failed, quitting!!!!!!\n");
          return 1;
