@@ -6,7 +6,7 @@ Released as open source by NCC Group Plc - http://www.nccgroup.com/
 
 Developed for Linux by Aidan Marlin, aidan dot marlin at nccgroup dot com
 
-Developed for Windows by Nikos Laleas, nikos dor laleas at nccgroup dot com
+Developed for Windows by Nikos Laleas, nikos dot laleas at nccgroup dot com
 
 Mentor Ollie Whitehouse, ollie dot whitehouse at nccgroup dot com
 
