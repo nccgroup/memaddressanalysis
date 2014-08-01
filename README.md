@@ -20,8 +20,8 @@ Purpose of this research project was to produce tooling that was capable of:
 
 * repeatedly running a program of choice (x) times where x is configurable
 * then for each run
-** wait (n) seconds - where n is configurable (to allow for program start-up, library loading etc.)
-** record the addresses and sizes of the mapped memory pages noting which are writeable and writeable/executable
+ * wait (n) seconds - where n is configurable (to allow for program start-up, library loading etc.)
+ * record the addresses and sizes of the mapped memory pages noting which are writeable and writeable/executable
 * at the conclusion of (x) executions scan through the results and see if any addresses are consistently writeable or writeable/executable at the same address (even if the sizes differ)
 
 With the goal dynamically discovering any ASLR bypasses for the target program.
